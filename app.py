@@ -26,16 +26,16 @@ OMKAR_API_KEY = "ok_ad50fb80682eff950d34e7a9b3a77c8c"
 
 ALL_TOKENS = [TOKEN_MAIN, TOKEN_1K]
 
-# ========== ЛИМИТЫ ЗАПРОСОВ (ТОЛЬКО ДЛЯ 1KSUBS - 500 В ДЕНЬ) ==========
+# ========== ЛИМИТЫ ЗАПРОСОВ ==========
 request_counts = defaultdict(int)
 request_dates = defaultdict(str)
 
 def check_limit(token):
-    # У токена LevSearchApiAll НЕТ ограничений
+    # LevSearchApiAll - безлимит
     if token == TOKEN_MAIN:
         return True, None
     
-    # У токена 1KSUBS - 500 запросов в день
+    # 1KSUBS - 500 запросов в день
     today = date.today().isoformat()
     if request_dates[token] != today:
         request_dates[token] = today
@@ -78,7 +78,7 @@ def get_intelx(phone):
     except Exception as e:
         return {"status": "error", "source": "intelx", "message": str(e)}
 
-# ========== LEAKOSINT ПАРСЕР (ТОЛЬКО ДЛЯ MAIN ТОКЕНА) ==========
+# ========== LEAKOSINT ПАРСЕР ==========
 def get_leakosint(query):
     try:
         r = requests.post('https://leakosintapi.com/', json={'token': LEAKOSINT_KEY, 'request': query}, timeout=60)
@@ -94,7 +94,7 @@ def get_leakosint(query):
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
-# ========== VERIPHONE ==========
+# ========== VERIPHONE ПАРСЕР ==========
 def get_veriphone(phone):
     phone_clean = re.sub(r'\D', '', phone)
     url = "https://api.veriphone.io/v2/verify"
@@ -113,7 +113,7 @@ def get_veriphone(phone):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== WHATSAPP ==========
+# ========== WHATSAPP ПАРСЕР ==========
 def get_whatsapp(phone):
     phone_clean = re.sub(r'\D', '', phone)
     if phone_clean.startswith('8'):
@@ -131,7 +131,7 @@ def get_whatsapp(phone):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== ODNOKLASSNIKI ==========
+# ========== ODNOKLASSNIKI ПАРСЕР ==========
 def get_odnoklassniki(phone):
     phone_clean = re.sub(r'\D', '', phone)
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -148,7 +148,7 @@ def get_odnoklassniki(phone):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== OMKAR PHONE ==========
+# ========== OMKAR PHONE ПАРСЕР ==========
 def get_omkar_phone(phone):
     url = "https://carrier-lookup-api.omkar.cloud/lookup"
     params = {"phone": phone}
@@ -161,7 +161,7 @@ def get_omkar_phone(phone):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== OMKAR EMAIL ==========
+# ========== OMKAR EMAIL ПАРСЕР ==========
 def get_omkar_email(email):
     url = "https://email-verification-api.omkar.cloud/verify"
     params = {"email": email}
@@ -174,7 +174,7 @@ def get_omkar_email(email):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== YOUTUBE ==========
+# ========== YOUTUBE ПАРСЕР ==========
 def get_youtube_info(url):
     ydl_opts = {'quiet': True, 'extract_flat': False}
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -197,7 +197,7 @@ def get_youtube_info(url):
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-# ========== СОЦИАЛЬНЫЕ СЕТИ ==========
+# ========== СОЦИАЛЬНЫЕ СЕТИ (ССЫЛКИ) ==========
 def get_social_links(phone):
     phone_clean = ''.join(filter(str.isdigit, phone))
     return {
@@ -275,7 +275,7 @@ def get_google_dorks(phone):
     
     return dork_urls
 
-# ========== БАНКИ ПО ИНН ==========
+# ========== БАНКИ ПО ИНН (ПОЛНЫЙ СПИСОК) ==========
 def get_bank_by_inn(inn):
     banks_database = {
         "7707083893": "Публичное акционерное общество Сбербанк России",
@@ -323,7 +323,7 @@ def get_bank_by_inn(inn):
     }
     return banks_database.get(inn, "Банк не найден")
 
-# ========== BIN CARD ==========
+# ========== BIN CARD ПАРСЕР ==========
 def get_card_info(bin_number):
     url = f"https://lookup.binlist.net/{bin_number}"
     headers = {'Accept-Version': '3'}
@@ -342,7 +342,7 @@ def get_card_info(bin_number):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== DOMAIN ==========
+# ========== DOMAIN ПАРСЕР (IP + ПОРТЫ) ==========
 def get_domain_info(domain_name):
     result = {"domain": domain_name}
     try:
@@ -365,7 +365,7 @@ def get_domain_info(domain_name):
     
     return result
 
-# ========== VK ==========
+# ========== VK ПОЛЬЗОВАТЕЛЬ ==========
 def get_vk_user(user_id):
     try:
         url = "https://api.vk.com/method/users.get"
@@ -397,7 +397,7 @@ def get_vk_user(user_id):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== IP ==========
+# ========== IP ИНФОРМАЦИЯ ==========
 def get_ip_info(ip_address):
     try:
         r = requests.get(f"http://ip-api.com/json/{ip_address}", timeout=10)
@@ -415,7 +415,7 @@ def get_ip_info(ip_address):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== TIKTOK ==========
+# ========== TIKTOK ПОЛЬЗОВАТЕЛЬ ==========
 def get_tiktok_user(username):
     username = username.replace('@', '').strip()
     url = f"https://www.tiktok.com/@{username}"
@@ -436,7 +436,7 @@ def get_tiktok_user(username):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== INSTAGRAM ==========
+# ========== INSTAGRAM ПО НОМЕРУ ==========
 def get_instagram_by_phone(phone):
     phone_clean = ''.join(filter(str.isdigit, phone))
     url = f"https://www.google.com/search?q=site:instagram.com+{phone_clean}"
@@ -451,7 +451,7 @@ def get_instagram_by_phone(phone):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== EMAIL MX ==========
+# ========== EMAIL MX ПРОВЕРКА ==========
 def get_email_mx(email_address):
     email_address = unquote(email_address)
     domain = email_address.split('@')[-1]
@@ -463,7 +463,7 @@ def get_email_mx(email_address):
     except:
         return {"email": email_address, "has_mx": False, "domain": domain}
 
-# ========== TELEGRAM ==========
+# ========== TELEGRAM ПОЛЬЗОВАТЕЛЬ ==========
 def get_telegram_user(username):
     username = username.replace("@", "").strip()
     url = f"https://t.me/{username}"
@@ -730,7 +730,7 @@ def vk_groups():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# ========== HTML ДОКУМЕНТАЦИЯ (КРАСИВАЯ) ==========
+# ========== HTML ДОКУМЕНТАЦИЯ ==========
 HTML_DOC = '''
 <!DOCTYPE html>
 <html lang="ru">
@@ -758,7 +758,6 @@ HTML_DOC = '''
             padding: 20px;
         }
         
-        /* Header */
         .header {
             text-align: center;
             padding: 40px 20px;
@@ -793,7 +792,6 @@ HTML_DOC = '''
             border: 1px solid #00ff9d40;
         }
         
-        /* Stats */
         .stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -820,7 +818,6 @@ HTML_DOC = '''
             margin-top: 5px;
         }
         
-        /* Search */
         .search-section {
             background: #0f1228;
             border-radius: 20px;
@@ -850,12 +847,10 @@ HTML_DOC = '''
             color: #e0e0e0;
             font-size: 1em;
             outline: none;
-            transition: all 0.3s;
         }
         
         .search-input:focus {
             border-color: #00ff9d;
-            box-shadow: 0 0 10px #00ff9d20;
         }
         
         .search-select {
@@ -864,7 +859,6 @@ HTML_DOC = '''
             border: 1px solid #2a2f4a;
             border-radius: 10px;
             color: #e0e0e0;
-            font-size: 1em;
             cursor: pointer;
         }
         
@@ -883,7 +877,16 @@ HTML_DOC = '''
             transform: translateY(-2px);
         }
         
-        /* Endpoints */
+        .warning {
+            margin-top: 15px;
+            padding: 10px;
+            background: #00ff9d20;
+            border-radius: 8px;
+            color: #00ff9d;
+            font-size: 0.85em;
+            text-align: center;
+        }
+        
         .endpoints {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -901,7 +904,6 @@ HTML_DOC = '''
         
         .endpoint-card:hover {
             border-color: #00ff9d40;
-            transform: translateY(-3px);
         }
         
         .endpoint-header {
@@ -947,17 +949,16 @@ HTML_DOC = '''
             word-break: break-all;
         }
         
-        .token-badge {
+        .token-badge-free {
             display: inline-block;
             padding: 4px 10px;
-            background: #ff444420;
-            color: #ff4444;
+            background: #00ff9d20;
+            color: #00ff9d;
             border-radius: 6px;
             font-size: 0.7em;
             margin-top: 10px;
         }
         
-        /* Footer */
         .footer {
             text-align: center;
             padding: 30px;
@@ -997,27 +998,25 @@ HTML_DOC = '''
                 <div class="stat-label">Парсеров</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">∞</div>
-                <div class="stat-label">Лимит (LevSearchApiAll)</div>
+                <div class="stat-number">Безлимит</div>
+                <div class="stat-label">LevSearchApiAll</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">500</div>
-                <div class="stat-label">Лимит/день (1KSUBS)</div>
+                <div class="stat-number">500/день</div>
+                <div class="stat-label">1KSUBS (бесплатно)</div>
             </div>
         </div>
         
         <div class="search-section">
-            <div class="search-title">🚀 Быстрый тест API</div>
+            <div class="search-title">🚀 Тест API (бесплатно 500 запросов/день)</div>
             <div class="search-form">
                 <input type="text" id="queryInput" class="search-input" placeholder="Телефон, email, домен, IP...">
                 <select id="endpointSelect" class="search-select">
                     <option value="/search">🔍 Поиск (все данные)</option>
                     <option value="/intelx">📂 IntelX утечки</option>
-                    <option value="/leakosint">🔥 LeakOSINT</option>
                     <option value="/whois">🌐 WHOIS домена</option>
                     <option value="/dns">📋 DNS записи</option>
                     <option value="/subdomains">🌍 Поддомены</option>
-                    <option value="/headers">📄 Заголовки сайта</option>
                     <option value="/vk">👤 VK пользователь</option>
                     <option value="/ip">📍 IP геолокация</option>
                     <option value="/card">💳 BIN карты</option>
@@ -1025,14 +1024,12 @@ HTML_DOC = '''
                     <option value="/tiktok">🎵 TikTok пользователь</option>
                     <option value="/telegram">📱 Telegram пользователь</option>
                     <option value="/email">📧 Email проверка</option>
-                    <option value="/omkar/reviews">⭐ Отзывы Omkar</option>
-                    <option value="/youtube">🎬 YouTube</option>
                     <option value="/whatsapp">💬 WhatsApp</option>
                     <option value="/odnoklassniki">👥 Одноклассники</option>
                 </select>
-                <input type="text" id="tokenInput" class="search-input" placeholder="Токен (LevSearchApiAll или 1KSUBS)" value="LevSearchApiAll">
                 <button class="search-button" onclick="testAPI()">▶ Отправить</button>
             </div>
+            <div class="warning" id="warningMsg">🎁 Бесплатный токен 1KSUBS - 500 запросов в день</div>
             <pre id="resultPre" style="margin-top: 20px; background: #0a0e27; padding: 15px; border-radius: 10px; overflow-x: auto; font-size: 12px; display: none;"></pre>
         </div>
         
@@ -1043,8 +1040,9 @@ HTML_DOC = '''
                     <span class="endpoint-path">/search</span>
                 </div>
                 <div class="endpoint-body">
-                    <div class="endpoint-desc">🔍 Основной поиск - объединяет IntelX, Veriphone, WhatsApp, Одноклассники, Omkar, соцсети, Google Dorks и LeakOSINT</div>
-                    <div class="endpoint-example">/search?token=LevSearchApiAll&q=79233756070</div>
+                    <div class="endpoint-desc">🔍 Основной поиск - IntelX, Veriphone, WhatsApp, Одноклассники, соцсети, Google Dorks</div>
+                    <div class="endpoint-example">/search?token=1KSUBS&q=79233756070</div>
+                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
                 </div>
             </div>
             
@@ -1055,19 +1053,8 @@ HTML_DOC = '''
                 </div>
                 <div class="endpoint-body">
                     <div class="endpoint-desc">📂 Поиск утечек в открытых базах IntelX</div>
-                    <div class="endpoint-example">/intelx?token=LevSearchApiAll&phone=79233756070</div>
-                </div>
-            </div>
-            
-            <div class="endpoint-card">
-                <div class="endpoint-header">
-                    <span class="endpoint-method">GET</span>
-                    <span class="endpoint-path">/leakosint</span>
-                </div>
-                <div class="endpoint-body">
-                    <div class="endpoint-desc">🔥 Платный API утечек (ТОЛЬКО для токена LevSearchApiAll)</div>
-                    <div class="endpoint-example">/leakosint?token=LevSearchApiAll&q=79233756070</div>
-                    <div class="token-badge">⚡ Только LevSearchApiAll</div>
+                    <div class="endpoint-example">/intelx?token=1KSUBS&phone=79233756070</div>
+                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
                 </div>
             </div>
             
@@ -1078,7 +1065,8 @@ HTML_DOC = '''
                 </div>
                 <div class="endpoint-body">
                     <div class="endpoint-desc">🌐 WHOIS информация о домене</div>
-                    <div class="endpoint-example">/whois?token=LevSearchApiAll&domain=google.com</div>
+                    <div class="endpoint-example">/whois?token=1KSUBS&domain=google.com</div>
+                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
                 </div>
             </div>
             
@@ -1088,8 +1076,9 @@ HTML_DOC = '''
                     <span class="endpoint-path">/dns</span>
                 </div>
                 <div class="endpoint-body">
-                    <div class="endpoint-desc">📋 DNS записи домена (A, MX, NS, TXT, CNAME, SOA, AAAA)</div>
-                    <div class="endpoint-example">/dns?token=LevSearchApiAll&domain=google.com</div>
+                    <div class="endpoint-desc">📋 DNS записи домена</div>
+                    <div class="endpoint-example">/dns?token=1KSUBS&domain=google.com</div>
+                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
                 </div>
             </div>
             
@@ -1100,18 +1089,8 @@ HTML_DOC = '''
                 </div>
                 <div class="endpoint-body">
                     <div class="endpoint-desc">🌍 Поиск поддоменов через crt.sh</div>
-                    <div class="endpoint-example">/subdomains?token=LevSearchApiAll&domain=google.com</div>
-                </div>
-            </div>
-            
-            <div class="endpoint-card">
-                <div class="endpoint-header">
-                    <span class="endpoint-method">GET</span>
-                    <span class="endpoint-path">/headers</span>
-                </div>
-                <div class="endpoint-body">
-                    <div class="endpoint-desc">📄 HTTP заголовки сайта</div>
-                    <div class="endpoint-example">/headers?token=LevSearchApiAll&url=google.com</div>
+                    <div class="endpoint-example">/subdomains?token=1KSUBS&domain=google.com</div>
+                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
                 </div>
             </div>
             
@@ -1122,40 +1101,8 @@ HTML_DOC = '''
                 </div>
                 <div class="endpoint-body">
                     <div class="endpoint-desc">👤 Информация о VK пользователе</div>
-                    <div class="endpoint-example">/vk?token=LevSearchApiAll&id=1</div>
-                </div>
-            </div>
-            
-            <div class="endpoint-card">
-                <div class="endpoint-header">
-                    <span class="endpoint-method">GET</span>
-                    <span class="endpoint-path">/vk/wall</span>
-                </div>
-                <div class="endpoint-body">
-                    <div class="endpoint-desc">📝 Стена VK пользователя</div>
-                    <div class="endpoint-example">/vk/wall?token=LevSearchApiAll&id=1&count=5</div>
-                </div>
-            </div>
-            
-            <div class="endpoint-card">
-                <div class="endpoint-header">
-                    <span class="endpoint-method">GET</span>
-                    <span class="endpoint-path">/vk/friends</span>
-                </div>
-                <div class="endpoint-body">
-                    <div class="endpoint-desc">👥 Друзья VK пользователя</div>
-                    <div class="endpoint-example">/vk/friends?token=LevSearchApiAll&id=1</div>
-                </div>
-            </div>
-            
-            <div class="endpoint-card">
-                <div class="endpoint-header">
-                    <span class="endpoint-method">GET</span>
-                    <span class="endpoint-path">/vk/groups</span>
-                </div>
-                <div class="endpoint-body">
-                    <div class="endpoint-desc">📚 Группы VK пользователя</div>
-                    <div class="endpoint-example">/vk/groups?token=LevSearchApiAll&id=1</div>
+                    <div class="endpoint-example">/vk?token=1KSUBS&id=1</div>
+                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
                 </div>
             </div>
             
@@ -1166,7 +1113,8 @@ HTML_DOC = '''
                 </div>
                 <div class="endpoint-body">
                     <div class="endpoint-desc">📍 Геолокация IP адреса</div>
-                    <div class="endpoint-example">/ip?token=LevSearchApiAll&address=8.8.8.8</div>
+                    <div class="endpoint-example">/ip?token=1KSUBS&address=8.8.8.8</div>
+                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
                 </div>
             </div>
             
@@ -1177,7 +1125,8 @@ HTML_DOC = '''
                 </div>
                 <div class="endpoint-body">
                     <div class="endpoint-desc">💳 Информация о банковской карте по BIN</div>
-                    <div class="endpoint-example">/card?token=LevSearchApiAll&bin=477964</div>
+                    <div class="endpoint-example">/card?token=1KSUBS&bin=477964</div>
+                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
                 </div>
             </div>
             
@@ -1188,7 +1137,8 @@ HTML_DOC = '''
                 </div>
                 <div class="endpoint-body">
                     <div class="endpoint-desc">🏦 Поиск банка по ИНН</div>
-                    <div class="endpoint-example">/bank?token=LevSearchApiAll&inn=7707083893</div>
+                    <div class="endpoint-example">/bank?token=1KSUBS&inn=7707083893</div>
+                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
                 </div>
             </div>
             
@@ -1199,7 +1149,8 @@ HTML_DOC = '''
                 </div>
                 <div class="endpoint-body">
                     <div class="endpoint-desc">🎵 Информация о TikTok пользователе</div>
-                    <div class="endpoint-example">/tiktok?token=LevSearchApiAll&username=marvel</div>
+                    <div class="endpoint-example">/tiktok?token=1KSUBS&username=marvel</div>
+                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
                 </div>
             </div>
             
@@ -1210,18 +1161,8 @@ HTML_DOC = '''
                 </div>
                 <div class="endpoint-body">
                     <div class="endpoint-desc">📱 Проверка существования Telegram</div>
-                    <div class="endpoint-example">/telegram?token=LevSearchApiAll&username=durov</div>
-                </div>
-            </div>
-            
-            <div class="endpoint-card">
-                <div class="endpoint-header">
-                    <span class="endpoint-method">GET</span>
-                    <span class="endpoint-path">/instagram</span>
-                </div>
-                <div class="endpoint-body">
-                    <div class="endpoint-desc">📸 Поиск Instagram по номеру телефона</div>
-                    <div class="endpoint-example">/instagram?token=LevSearchApiAll&phone=79233756070</div>
+                    <div class="endpoint-example">/telegram?token=1KSUBS&username=durov</div>
+                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
                 </div>
             </div>
             
@@ -1232,40 +1173,8 @@ HTML_DOC = '''
                 </div>
                 <div class="endpoint-body">
                     <div class="endpoint-desc">📧 Проверка MX записей email</div>
-                    <div class="endpoint-example">/email?token=LevSearchApiAll&address=test@gmail.com</div>
-                </div>
-            </div>
-            
-            <div class="endpoint-card">
-                <div class="endpoint-header">
-                    <span class="endpoint-method">GET</span>
-                    <span class="endpoint-path">/omkar/reviews</span>
-                </div>
-                <div class="endpoint-body">
-                    <div class="endpoint-desc">⭐ Отзывы о месте через Omkar</div>
-                    <div class="endpoint-example">/omkar/reviews?token=LevSearchApiAll&query=Krasnoyarsk</div>
-                </div>
-            </div>
-            
-            <div class="endpoint-card">
-                <div class="endpoint-header">
-                    <span class="endpoint-method">GET</span>
-                    <span class="endpoint-path">/youtube</span>
-                </div>
-                <div class="endpoint-body">
-                    <div class="endpoint-desc">🎬 Информация о YouTube видео</div>
-                    <div class="endpoint-example">/youtube?token=LevSearchApiAll&url=https://youtube.com/watch?v=dQw4w9WgXcQ</div>
-                </div>
-            </div>
-            
-            <div class="endpoint-card">
-                <div class="endpoint-header">
-                    <span class="endpoint-method">GET</span>
-                    <span class="endpoint-path">/veriphone</span>
-                </div>
-                <div class="endpoint-body">
-                    <div class="endpoint-desc">📞 Валидация телефона (страна, оператор)</div>
-                    <div class="endpoint-example">/veriphone?token=LevSearchApiAll&phone=79233756070</div>
+                    <div class="endpoint-example">/email?token=1KSUBS&address=test@gmail.com</div>
+                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
                 </div>
             </div>
             
@@ -1276,7 +1185,8 @@ HTML_DOC = '''
                 </div>
                 <div class="endpoint-body">
                     <div class="endpoint-desc">💬 Проверка наличия WhatsApp</div>
-                    <div class="endpoint-example">/whatsapp?token=LevSearchApiAll&phone=79233756070</div>
+                    <div class="endpoint-example">/whatsapp?token=1KSUBS&phone=79233756070</div>
+                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
                 </div>
             </div>
             
@@ -1287,94 +1197,62 @@ HTML_DOC = '''
                 </div>
                 <div class="endpoint-body">
                     <div class="endpoint-desc">👥 Поиск профиля в Одноклассниках</div>
-                    <div class="endpoint-example">/odnoklassniki?token=LevSearchApiAll&phone=79233756070</div>
-                </div>
-            </div>
-            
-            <div class="endpoint-card">
-                <div class="endpoint-header">
-                    <span class="endpoint-method">GET</span>
-                    <span class="endpoint-path">/social</span>
-                </div>
-                <div class="endpoint-body">
-                    <div class="endpoint-desc">🔗 Ссылки для поиска в 30+ соцсетях</div>
-                    <div class="endpoint-example">/social?token=LevSearchApiAll&phone=79233756070</div>
-                </div>
-            </div>
-            
-            <div class="endpoint-card">
-                <div class="endpoint-header">
-                    <span class="endpoint-method">GET</span>
-                    <span class="endpoint-path">/dorks</span>
-                </div>
-                <div class="endpoint-body">
-                    <div class="endpoint-desc">🔍 Google Dorks для номера телефона</div>
-                    <div class="endpoint-example">/dorks?token=LevSearchApiAll&phone=79233756070</div>
-                </div>
-            </div>
-            
-            <div class="endpoint-card">
-                <div class="endpoint-header">
-                    <span class="endpoint-method">GET</span>
-                    <span class="endpoint-path">/domain</span>
-                </div>
-                <div class="endpoint-body">
-                    <div class="endpoint-desc">🌐 IP адрес и открытые порты домена</div>
-                    <div class="endpoint-example">/domain?token=LevSearchApiAll&name=google.com</div>
-                </div>
-            </div>
-            
-            <div class="endpoint-card">
-                <div class="endpoint-header">
-                    <span class="endpoint-method">GET</span>
-                    <span class="endpoint-path">/omkar/phone</span>
-                </div>
-                <div class="endpoint-body">
-                    <div class="endpoint-desc">📱 Информация о телефоне через Omkar</div>
-                    <div class="endpoint-example">/omkar/phone?token=LevSearchApiAll&phone=79233756070</div>
-                </div>
-            </div>
-            
-            <div class="endpoint-card">
-                <div class="endpoint-header">
-                    <span class="endpoint-method">GET</span>
-                    <span class="endpoint-path">/omkar/email</span>
-                </div>
-                <div class="endpoint-body">
-                    <div class="endpoint-desc">📧 Проверка email через Omkar</div>
-                    <div class="endpoint-example">/omkar/email?token=LevSearchApiAll&email=test@gmail.com</div>
+                    <div class="endpoint-example">/odnoklassniki?token=1KSUBS&phone=79233756070</div>
+                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
                 </div>
             </div>
         </div>
         
         <div class="footer">
-            <p>LevSearch API | OSINT инструмент | 🔒 Все запросы логируются | ⚡ Лимиты: LevSearchApiAll - безлимит, 1KSUBS - 500/день</p>
+            <p>LevSearch API | OSINT инструмент | 🎁 Бесплатно: 500 запросов в день (токен 1KSUBS) | 💎 Платно: безлимит (токен LevSearchApiAll)</p>
         </div>
     </div>
     
     <script>
+        let freeRequests = parseInt(localStorage.getItem('freeRequests') || '0');
+        let lastDate = localStorage.getItem('lastDate') || '';
+        const today = new Date().toDateString();
+        
+        if (lastDate !== today) {
+            freeRequests = 0;
+            localStorage.setItem('lastDate', today);
+            localStorage.setItem('freeRequests', '0');
+        }
+        
+        function updateWarning() {
+            const remaining = 500 - freeRequests;
+            const warningDiv = document.getElementById('warningMsg');
+            warningDiv.innerHTML = `🎁 Бесплатный токен 1KSUBS - осталось ${remaining} из 500 запросов на сегодня. Платный токен LevSearchApiAll - безлимит.`;
+            warningDiv.style.background = '#00ff9d20';
+            warningDiv.style.color = '#00ff9d';
+        }
+        
         async function testAPI() {
             const query = document.getElementById('queryInput').value;
             const endpoint = document.getElementById('endpointSelect').value;
-            const token = document.getElementById('tokenInput').value;
             
             if (!query) {
                 alert('Введите запрос');
                 return;
             }
             
+            if (freeRequests >= 500) {
+                alert('Вы использовали 500 бесплатных запросов на сегодня. Используйте платный токен LevSearchApiAll');
+                return;
+            }
+            
+            const token = '1KSUBS';
+            
             let url = endpoint + '?token=' + token;
             
-            if (endpoint === '/search' || endpoint === '/leakosint') {
+            if (endpoint === '/search') {
                 url += '&q=' + encodeURIComponent(query);
-            } else if (endpoint === '/intelx' || endpoint === '/whatsapp' || endpoint === '/odnoklassniki' || endpoint === '/omkar/phone' || endpoint === '/instagram' || endpoint === '/social' || endpoint === '/dorks') {
+            } else if (endpoint === '/intelx' || endpoint === '/whatsapp' || endpoint === '/odnoklassniki') {
                 url += '&phone=' + encodeURIComponent(query);
             } else if (endpoint === '/whois' || endpoint === '/dns' || endpoint === '/subdomains') {
                 url += '&domain=' + encodeURIComponent(query);
-            } else if (endpoint === '/vk' || endpoint === '/vk/wall' || endpoint === '/vk/friends' || endpoint === '/vk/groups') {
+            } else if (endpoint === '/vk') {
                 url += '&id=' + encodeURIComponent(query);
-            } else if (endpoint === '/headers' || endpoint === '/youtube') {
-                url += '&url=' + encodeURIComponent(query);
             } else if (endpoint === '/ip') {
                 url += '&address=' + encodeURIComponent(query);
             } else if (endpoint === '/card') {
@@ -1383,10 +1261,8 @@ HTML_DOC = '''
                 url += '&inn=' + encodeURIComponent(query);
             } else if (endpoint === '/tiktok' || endpoint === '/telegram') {
                 url += '&username=' + encodeURIComponent(query);
-            } else if (endpoint === '/email' || endpoint === '/omkar/email') {
+            } else if (endpoint === '/email') {
                 url += '&address=' + encodeURIComponent(query);
-            } else if (endpoint === '/omkar/reviews') {
-                url += '&query=' + encodeURIComponent(query);
             }
             
             const resultPre = document.getElementById('resultPre');
@@ -1397,10 +1273,18 @@ HTML_DOC = '''
                 const response = await fetch(url);
                 const data = await response.json();
                 resultPre.textContent = JSON.stringify(data, null, 2);
+                
+                if (!data.error?.includes('лимит')) {
+                    freeRequests++;
+                    localStorage.setItem('freeRequests', freeRequests);
+                    updateWarning();
+                }
             } catch (error) {
                 resultPre.textContent = 'Ошибка: ' + error.message;
             }
         }
+        
+        updateWarning();
     </script>
 </body>
 </html>
