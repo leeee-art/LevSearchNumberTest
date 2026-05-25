@@ -4,12 +4,11 @@ import requests
 import json
 import re
 import socket
-import yt_dlp
-import csv
-import io
-import whois
 import dns.resolver
+import whois
+import yt_dlp
 from urllib.parse import unquote, quote
+import subprocess
 
 app = Flask(__name__)
 CORS(app)
@@ -27,35 +26,83 @@ ALL_TOKENS = [TOKEN_MAIN, TOKEN_1K]
 def check_token(token):
     return token in ALL_TOKENS
 
-# ========== INTELX (БЕСПЛАТНЫЙ ПАРСЕР УТЕЧЕК) ==========
-def get_intelx(phone):
-    phone_clean = re.sub(r'\D', '', phone)
-    if len(phone_clean) < 8:
-        return {"error": "номер слишком короткий"}
-    
-    url = f'https://data.intelx.io/saverudata/db2/dbpn/{phone_clean[:2]}/{phone_clean[2:4]}/{phone_clean[4:6]}/{phone_clean[6:8]}.csv'
-    
-    try:
-        r = requests.get(url, timeout=15, verify=False)
-        if r.status_code == 200:
-            data = list(csv.reader(io.StringIO(r.text)))
-            if len(data) > 1:
-                headers = data[0]
-                results = []
-                for row in data[1:]:
-                    if phone_clean in ' '.join(row):
-                        item = {}
-                        for i, cell in enumerate(row):
-                            if i < len(headers) and cell:
-                                item[headers[i]] = cell
-                        results.append(item)
-                return {"status": "success", "source": "intelx", "results": results[:20]}
-            return {"status": "empty", "source": "intelx"}
-        return {"status": "error", "source": "intelx", "code": r.status_code}
-    except Exception as e:
-        return {"status": "error", "source": "intelx", "message": str(e)}
+# ========== СТАРЫЕ ФУНКЦИИ ==========
 
-# ========== YOUTUBE ==========
+def get_veriphone(phone):
+    phone_clean = re.sub(r'\D', '', phone)
+    url = "https://api.veriphone.io/v2/verify"
+    params = {"phone": phone_clean, "key": VERIPHONE_KEY}
+    try:
+        r = requests.get(url, params=params, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            return {
+                "valid": data.get("valid"),
+                "country": data.get("country_code"),
+                "carrier": data.get("carrier"),
+                "type": data.get("phone_type")
+            }
+        return {"error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+def get_whatsapp(phone):
+    phone_clean = re.sub(r'\D', '', phone)
+    if phone_clean.startswith('8'):
+        phone_clean = '7' + phone_clean[1:]
+    elif not phone_clean.startswith('7'):
+        phone_clean = '7' + phone_clean
+    try:
+        r = requests.get(f"https://wa.me/{phone_clean}", timeout=10, allow_redirects=True)
+        if r.status_code == 200:
+            if "This phone number is not on WhatsApp" in r.text:
+                return {"exists": False, "phone": phone_clean}
+            else:
+                return {"exists": True, "phone": phone_clean}
+        return {"error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+def get_odnoklassniki(phone):
+    phone_clean = re.sub(r'\D', '', phone)
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    try:
+        url = "https://ok.ru/search"
+        params = {"st.mode": "Users", "st.query": phone_clean}
+        r = requests.get(url, headers=headers, params=params, timeout=10)
+        if r.status_code == 200:
+            match = re.search(r'num-found["\s]*:["\s]*(\d+)', r.text)
+            if match and int(match.group(1)) > 0:
+                return {"exists": True, "phone": phone_clean}
+            return {"exists": False, "phone": phone_clean}
+        return {"error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+def get_omkar_phone(phone):
+    url = "https://carrier-lookup-api.omkar.cloud/lookup"
+    params = {"phone": phone}
+    headers = {"API-Key": OMKAR_API_KEY}
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=10)
+        if r.status_code == 200:
+            return r.json()
+        return {"error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+def get_omkar_email(email):
+    url = "https://email-verification-api.omkar.cloud/verify"
+    params = {"email": email}
+    headers = {"API-Key": OMKAR_API_KEY}
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=10)
+        if r.status_code == 200:
+            return r.json()
+        return {"error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
 def get_youtube_info(url):
     ydl_opts = {'quiet': True, 'extract_flat': False}
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -78,87 +125,6 @@ def get_youtube_info(url):
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-# ========== VERIPHONE ==========
-def get_veriphone(phone):
-    phone_clean = re.sub(r'\D', '', phone)
-    url = "https://api.veriphone.io/v2/verify"
-    params = {"phone": phone_clean, "key": VERIPHONE_KEY}
-    try:
-        r = requests.get(url, params=params, timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            return {
-                "valid": data.get("valid"),
-                "country": data.get("country_code"),
-                "carrier": data.get("carrier"),
-                "type": data.get("phone_type")
-            }
-        return {"error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"error": str(e)}
-
-# ========== WHATSAPP ==========
-def get_whatsapp(phone):
-    phone_clean = re.sub(r'\D', '', phone)
-    if phone_clean.startswith('8'):
-        phone_clean = '7' + phone_clean[1:]
-    elif not phone_clean.startswith('7'):
-        phone_clean = '7' + phone_clean
-    try:
-        r = requests.get(f"https://wa.me/{phone_clean}", timeout=10, allow_redirects=True)
-        if r.status_code == 200:
-            if "This phone number is not on WhatsApp" in r.text:
-                return {"exists": False, "phone": phone_clean}
-            else:
-                return {"exists": True, "phone": phone_clean}
-        return {"error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"error": str(e)}
-
-# ========== ODNOKLASSNIKI ==========
-def get_odnoklassniki(phone):
-    phone_clean = re.sub(r'\D', '', phone)
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-    try:
-        url = "https://ok.ru/search"
-        params = {"st.mode": "Users", "st.query": phone_clean}
-        r = requests.get(url, headers=headers, params=params, timeout=10)
-        if r.status_code == 200:
-            match = re.search(r'num-found["\s]*:["\s]*(\d+)', r.text)
-            if match and int(match.group(1)) > 0:
-                return {"exists": True, "phone": phone_clean}
-            return {"exists": False, "phone": phone_clean}
-        return {"error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"error": str(e)}
-
-# ========== OMKAR PHONE ==========
-def get_omkar_phone(phone):
-    url = "https://carrier-lookup-api.omkar.cloud/lookup"
-    params = {"phone": phone}
-    headers = {"API-Key": OMKAR_API_KEY}
-    try:
-        r = requests.get(url, params=params, headers=headers, timeout=10)
-        if r.status_code == 200:
-            return r.json()
-        return {"error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"error": str(e)}
-
-# ========== OMKAR EMAIL ==========
-def get_omkar_email(email):
-    url = "https://email-verification-api.omkar.cloud/verify"
-    params = {"email": email}
-    headers = {"API-Key": OMKAR_API_KEY}
-    try:
-        r = requests.get(url, params=params, headers=headers, timeout=10)
-        if r.status_code == 200:
-            return r.json()
-        return {"error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"error": str(e)}
-
-# ========== LEAKOSINT (ПЛАТНЫЙ API УТЕЧЕК) ==========
 def get_leakosint(query):
     try:
         r = requests.post('https://leakosintapi.com/', json={'token': LEAKOSINT_KEY, 'request': query}, timeout=60)
@@ -172,7 +138,6 @@ def get_leakosint(query):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== СОЦИАЛЬНЫЕ СЕТИ ==========
 def get_social_links(phone):
     phone_clean = ''.join(filter(str.isdigit, phone))
     return {
@@ -209,7 +174,6 @@ def get_social_links(phone):
         "HaveIBeenPwned": f"https://haveibeenpwned.com/account/{phone_clean}"
     }
 
-# ========== GOOGLE DORKS ==========
 def get_google_dorks(phone):
     phone_clean = ''.join(filter(str.isdigit, phone))
     if phone_clean.startswith('8'):
@@ -250,7 +214,6 @@ def get_google_dorks(phone):
     
     return dork_urls
 
-# ========== БАНКИ ПО ИНН ==========
 def get_bank_by_inn(inn):
     banks_database = {
         "7707083893": "Публичное акционерное общество Сбербанк России",
@@ -298,7 +261,6 @@ def get_bank_by_inn(inn):
     }
     return banks_database.get(inn, "Банк не найден")
 
-# ========== BIN CARD ==========
 def get_card_info(bin_number):
     url = f"https://lookup.binlist.net/{bin_number}"
     headers = {'Accept-Version': '3'}
@@ -317,7 +279,6 @@ def get_card_info(bin_number):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== DOMAIN ==========
 def get_domain_info(domain_name):
     result = {"domain": domain_name}
     try:
@@ -340,7 +301,6 @@ def get_domain_info(domain_name):
     
     return result
 
-# ========== VK ОСНОВНОЙ ==========
 def get_vk_user(user_id):
     try:
         url = "https://api.vk.com/method/users.get"
@@ -372,9 +332,7 @@ def get_vk_user(user_id):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== НОВЫЕ VK ПАРСЕРЫ ==========
-
-# 1. Стена пользователя (посты)
+# НОВЫЕ VK МЕТОДЫ
 @app.route('/vk/wall')
 def vk_wall():
     token = request.args.get('token', '')
@@ -382,7 +340,7 @@ def vk_wall():
         return jsonify({"error": "Invalid token"}), 403
     
     user_id = request.args.get('id', '')
-    count = int(request.args.get('count', 10))
+    count = request.args.get('count', 10)
     
     try:
         url = "https://api.vk.com/method/wall.get"
@@ -398,7 +356,6 @@ def vk_wall():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# 2. Друзья пользователя
 @app.route('/vk/friends')
 def vk_friends():
     token = request.args.get('token', '')
@@ -420,7 +377,6 @@ def vk_friends():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# 3. Группы пользователя
 @app.route('/vk/groups')
 def vk_groups():
     token = request.args.get('token', '')
@@ -443,7 +399,82 @@ def vk_groups():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# ========== НОВЫЕ ПАРСЕРЫ (WHOIS, DNS, HEADERS, SUBDOMAINS, OMKAR REVIEWS) ==========
+def get_ip_info(ip_address):
+    try:
+        r = requests.get(f"http://ip-api.com/json/{ip_address}", timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("status") == "success":
+                return {
+                    "country": data.get("country"),
+                    "city": data.get("city"),
+                    "isp": data.get("isp"),
+                    "lat": data.get("lat"),
+                    "lon": data.get("lon")
+                }
+        return {"error": "IP not found"}
+    except Exception as e:
+        return {"error": str(e)}
+
+def get_tiktok_user(username):
+    username = username.replace('@', '').strip()
+    url = f"https://www.tiktok.com/@{username}"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    try:
+        r = requests.get(url, headers=headers, timeout=15)
+        if r.status_code == 200:
+            followers_match = re.search(r'"followerCount":(\d+)', r.text)
+            followers = int(followers_match.group(1)) if followers_match else 0
+            name_match = re.search(r'"nickname":"([^"]+)"', r.text)
+            name = name_match.group(1) if name_match else None
+            return {
+                "username": username,
+                "name": name,
+                "followers": followers
+            }
+        return {"error": "User not found"}
+    except Exception as e:
+        return {"error": str(e)}
+
+def get_instagram_by_phone(phone):
+    phone_clean = ''.join(filter(str.isdigit, phone))
+    url = f"https://www.google.com/search?q=site:instagram.com+{phone_clean}"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    try:
+        r = requests.get(url, headers=headers, timeout=15)
+        if r.status_code == 200 and "instagram.com" in r.text:
+            username_match = re.search(r'instagram\.com/([a-zA-Z0-9_.]+)', r.text)
+            username = username_match.group(1) if username_match else None
+            return {"exists": True, "username": username}
+        return {"exists": False}
+    except Exception as e:
+        return {"error": str(e)}
+
+def get_email_mx(email_address):
+    email_address = unquote(email_address)
+    domain = email_address.split('@')[-1]
+    try:
+        result = subprocess.run(['nslookup', '-type=mx', domain], capture_output=True, text=True, timeout=10)
+        has_mx = "mail exchanger" in result.stdout
+        return {"email": email_address, "has_mx": has_mx, "domain": domain}
+    except:
+        return {"email": email_address, "has_mx": False, "domain": domain}
+
+def get_telegram_user(username):
+    username = username.replace("@", "").strip()
+    url = f"https://t.me/{username}"
+    try:
+        r = requests.get(url, timeout=10)
+        if r.status_code == 200:
+            if "If you have Telegram" in r.text or "is not available" in r.text:
+                return {"exists": False, "username": username}
+            else:
+                return {"exists": True, "username": username}
+        return {"exists": False, "error": f"HTTP {r.status_code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+# ========== НОВЫЕ ПАРСЕРЫ ==========
 
 # 1. WHOIS парсер
 @app.route('/whois')
@@ -596,100 +627,45 @@ def omkar_reviews():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# ========== IP ==========
-def get_ip_info(ip_address):
+# 6. Omkar отели
+@app.route('/omkar/hotels')
+def omkar_hotels():
+    token = request.args.get('token', '')
+    if not check_token(token)):
+        return jsonify({"error": "Invalid token"}), 403
+    
+    query = request.args.get('query', '')
+    if not query:
+        return jsonify({"error": "Missing query parameter"}), 400
+    
     try:
-        r = requests.get(f"http://ip-api.com/json/{ip_address}", timeout=10)
+        url = "https://travel-data-api.omkar.cloud/travel/hotels/search"
+        r = requests.get(
+            url,
+            params={"query": query},
+            headers={"API-Key": OMKAR_API_KEY},
+            timeout=30
+        )
         if r.status_code == 200:
-            data = r.json()
-            if data.get("status") == "success":
-                return {
-                    "country": data.get("country"),
-                    "city": data.get("city"),
-                    "isp": data.get("isp"),
-                    "lat": data.get("lat"),
-                    "lon": data.get("lon")
-                }
-        return {"error": "IP not found"}
+            return jsonify(r.json())
+        return jsonify({"error": f"HTTP {r.status_code}"})
     except Exception as e:
-        return {"error": str(e)}
-
-# ========== TIKTOK ==========
-def get_tiktok_user(username):
-    username = username.replace('@', '').strip()
-    url = f"https://www.tiktok.com/@{username}"
-    headers = {"User-Agent": "Mozilla/5.0"}
-    try:
-        r = requests.get(url, headers=headers, timeout=15)
-        if r.status_code == 200:
-            followers_match = re.search(r'"followerCount":(\d+)', r.text)
-            followers = int(followers_match.group(1)) if followers_match else 0
-            name_match = re.search(r'"nickname":"([^"]+)"', r.text)
-            name = name_match.group(1) if name_match else None
-            return {
-                "username": username,
-                "name": name,
-                "followers": followers
-            }
-        return {"error": "User not found"}
-    except Exception as e:
-        return {"error": str(e)}
-
-# ========== INSTAGRAM ==========
-def get_instagram_by_phone(phone):
-    phone_clean = ''.join(filter(str.isdigit, phone))
-    url = f"https://www.google.com/search?q=site:instagram.com+{phone_clean}"
-    headers = {"User-Agent": "Mozilla/5.0"}
-    try:
-        r = requests.get(url, headers=headers, timeout=15)
-        if r.status_code == 200 and "instagram.com" in r.text:
-            username_match = re.search(r'instagram\.com/([a-zA-Z0-9_.]+)', r.text)
-            username = username_match.group(1) if username_match else None
-            return {"exists": True, "username": username}
-        return {"exists": False}
-    except Exception as e:
-        return {"error": str(e)}
-
-# ========== EMAIL MX ==========
-def get_email_mx(email_address):
-    email_address = unquote(email_address)
-    domain = email_address.split('@')[-1]
-    try:
-        import subprocess
-        result = subprocess.run(['nslookup', '-type=mx', domain], capture_output=True, text=True, timeout=10)
-        has_mx = "mail exchanger" in result.stdout
-        return {"email": email_address, "has_mx": has_mx, "domain": domain}
-    except:
-        return {"email": email_address, "has_mx": False, "domain": domain}
-
-# ========== TELEGRAM ==========
-def get_telegram_user(username):
-    username = username.replace("@", "").strip()
-    url = f"https://t.me/{username}"
-    try:
-        r = requests.get(url, timeout=10)
-        if r.status_code == 200:
-            if "If you have Telegram" in r.text or "is not available" in r.text:
-                return {"exists": False, "username": username}
-            else:
-                return {"exists": True, "username": username}
-        return {"exists": False, "error": f"HTTP {r.status_code}"}
-    except Exception as e:
-        return {"error": str(e)}
+        return jsonify({"error": str(e)})
 
 # ========== ОСНОВНЫЕ ЭНДПОИНТЫ ==========
+
 @app.route('/')
 def index():
     return jsonify({
         "status": "LevSearch API is running",
         "version": "2.0",
         "endpoints": {
-            "/search": "Поиск по номеру/email (IntelX + Veriphone + WhatsApp + OK + Omkar + Social + Dorks + LeakOSINT)",
-            "/intelx": "IntelX утечки по номеру",
+            # Старые
+            "/search": "Поиск по номеру/email",
             "/youtube": "YouTube информация",
             "/veriphone": "Проверка телефона",
             "/whatsapp": "Проверка WhatsApp",
-            "/odnoklassniki": "Поиск в Одноклассниках",
+            "/odnoklassniki": "Поиск в ОК",
             "/omkar/phone": "Omkar телефон",
             "/omkar/email": "Omkar email",
             "/leakosint": "LeakOSINT утечки",
@@ -697,21 +673,28 @@ def index():
             "/dorks": "Google Dorks",
             "/bank": "Банк по ИНН",
             "/card": "BIN карты",
-            "/domain": "Инфо о домене (IP + порты)",
+            "/domain": "Инфо о домене",
             "/vk": "VK пользователь",
-            "/vk/wall": "Стена VK",
-            "/vk/friends": "Друзья VK",
-            "/vk/groups": "Группы VK",
             "/ip": "IP информация",
             "/tiktok": "TikTok пользователь",
             "/instagram": "Instagram по телефону",
             "/email": "Email MX проверка",
             "/telegram": "Telegram пользователь",
+            
+            # Новые VK методы
+            "/vk/wall": "Стена VK",
+            "/vk/friends": "Друзья VK",
+            "/vk/groups": "Группы VK",
+            
+            # Новые парсеры
             "/whois": "WHOIS домена",
             "/dns": "DNS записи",
             "/headers": "Заголовки сайта",
-            "/subdomains": "Поддомены (crt.sh)",
-            "/omkar/reviews": "Отзывы о месте"
+            "/subdomains": "Поддомены",
+            
+            # Omkar Travel
+            "/omkar/reviews": "Отзывы о месте",
+            "/omkar/hotels": "Поиск отелей"
         }
     })
 
@@ -732,7 +715,6 @@ def search():
     }
     
     if re.search(r'\d', query):
-        result["intelx"] = get_intelx(query)
         result["veriphone"] = get_veriphone(query)
         result["whatsapp"] = get_whatsapp(query)
         result["odnoklassniki"] = get_odnoklassniki(query)
@@ -745,19 +727,6 @@ def search():
     else:
         result["leakosint"] = {"error": "Доступно только по токену LevSearchApiAll"}
     
-    return jsonify(result)
-
-@app.route('/intelx')
-def intelx():
-    token = request.args.get('token', '')
-    if not check_token(token):
-        return jsonify({"error": "Invalid token"}), 403
-    
-    phone = request.args.get('phone', '')
-    if not phone:
-        return jsonify({"error": "Missing phone parameter"}), 400
-    
-    result = get_intelx(phone)
     return jsonify(result)
 
 @app.route('/youtube')
