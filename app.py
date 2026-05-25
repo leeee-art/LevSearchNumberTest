@@ -31,18 +31,16 @@ request_counts = defaultdict(int)
 request_dates = defaultdict(str)
 
 def check_limit(token):
-    # LevSearchApiAll - безлимит
     if token == TOKEN_MAIN:
         return True, None
     
-    # 1KSUBS - 500 запросов в день
     today = date.today().isoformat()
     if request_dates[token] != today:
         request_dates[token] = today
         request_counts[token] = 0
     
     if request_counts[token] >= 500:
-        return False, "Превышен лимит 500 запросов в день для токена 1KSUBS"
+        return False, "Превышен лимит 500 запросов в день"
     
     request_counts[token] += 1
     return True, None
@@ -197,7 +195,7 @@ def get_youtube_info(url):
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-# ========== СОЦИАЛЬНЫЕ СЕТИ (ССЫЛКИ) ==========
+# ========== СОЦИАЛЬНЫЕ СЕТИ ==========
 def get_social_links(phone):
     phone_clean = ''.join(filter(str.isdigit, phone))
     return {
@@ -275,7 +273,7 @@ def get_google_dorks(phone):
     
     return dork_urls
 
-# ========== БАНКИ ПО ИНН (ПОЛНЫЙ СПИСОК) ==========
+# ========== БАНКИ ПО ИНН ==========
 def get_bank_by_inn(inn):
     banks_database = {
         "7707083893": "Публичное акционерное общество Сбербанк России",
@@ -323,7 +321,7 @@ def get_bank_by_inn(inn):
     }
     return banks_database.get(inn, "Банк не найден")
 
-# ========== BIN CARD ПАРСЕР ==========
+# ========== BIN CARD ==========
 def get_card_info(bin_number):
     url = f"https://lookup.binlist.net/{bin_number}"
     headers = {'Accept-Version': '3'}
@@ -342,7 +340,7 @@ def get_card_info(bin_number):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== DOMAIN ПАРСЕР (IP + ПОРТЫ) ==========
+# ========== DOMAIN ==========
 def get_domain_info(domain_name):
     result = {"domain": domain_name}
     try:
@@ -365,7 +363,7 @@ def get_domain_info(domain_name):
     
     return result
 
-# ========== VK ПОЛЬЗОВАТЕЛЬ ==========
+# ========== VK ==========
 def get_vk_user(user_id):
     try:
         url = "https://api.vk.com/method/users.get"
@@ -397,7 +395,7 @@ def get_vk_user(user_id):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== IP ИНФОРМАЦИЯ ==========
+# ========== IP ==========
 def get_ip_info(ip_address):
     try:
         r = requests.get(f"http://ip-api.com/json/{ip_address}", timeout=10)
@@ -415,7 +413,7 @@ def get_ip_info(ip_address):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== TIKTOK ПОЛЬЗОВАТЕЛЬ ==========
+# ========== TIKTOK ==========
 def get_tiktok_user(username):
     username = username.replace('@', '').strip()
     url = f"https://www.tiktok.com/@{username}"
@@ -436,7 +434,7 @@ def get_tiktok_user(username):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== INSTAGRAM ПО НОМЕРУ ==========
+# ========== INSTAGRAM ==========
 def get_instagram_by_phone(phone):
     phone_clean = ''.join(filter(str.isdigit, phone))
     url = f"https://www.google.com/search?q=site:instagram.com+{phone_clean}"
@@ -451,7 +449,7 @@ def get_instagram_by_phone(phone):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== EMAIL MX ПРОВЕРКА ==========
+# ========== EMAIL MX ==========
 def get_email_mx(email_address):
     email_address = unquote(email_address)
     domain = email_address.split('@')[-1]
@@ -463,7 +461,7 @@ def get_email_mx(email_address):
     except:
         return {"email": email_address, "has_mx": False, "domain": domain}
 
-# ========== TELEGRAM ПОЛЬЗОВАТЕЛЬ ==========
+# ========== TELEGRAM ==========
 def get_telegram_user(username):
     username = username.replace("@", "").strip()
     url = f"https://t.me/{username}"
@@ -478,7 +476,7 @@ def get_telegram_user(username):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== WHOIS ПАРСЕР ==========
+# ========== WHOIS ==========
 @app.route('/whois')
 def whois_parser():
     token = request.args.get('token', '')
@@ -511,7 +509,7 @@ def whois_parser():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# ========== DNS ПАРСЕР ==========
+# ========== DNS ==========
 @app.route('/dns')
 def dns_parser():
     token = request.args.get('token', '')
@@ -538,7 +536,7 @@ def dns_parser():
     
     return jsonify({"domain": domain, "records": records})
 
-# ========== ЗАГОЛОВКИ САЙТА ==========
+# ========== HEADERS ==========
 @app.route('/headers')
 def headers_parser():
     token = request.args.get('token', '')
@@ -573,7 +571,7 @@ def headers_parser():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# ========== ПОДДОМЕНЫ ==========
+# ========== SUBDOMAINS ==========
 @app.route('/subdomains')
 def subdomains_parser():
     token = request.args.get('token', '')
@@ -605,7 +603,7 @@ def subdomains_parser():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# ========== OMKAR ОТЗЫВЫ ==========
+# ========== OMKAR REVIEWS ==========
 @app.route('/omkar/reviews')
 def omkar_reviews():
     token = request.args.get('token', '')
@@ -649,7 +647,7 @@ def omkar_reviews():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# ========== VK СТЕНА ==========
+# ========== VK WALL ==========
 @app.route('/vk/wall')
 def vk_wall():
     token = request.args.get('token', '')
@@ -677,7 +675,7 @@ def vk_wall():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# ========== VK ДРУЗЬЯ ==========
+# ========== VK FRIENDS ==========
 @app.route('/vk/friends')
 def vk_friends():
     token = request.args.get('token', '')
@@ -703,7 +701,7 @@ def vk_friends():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# ========== VK ГРУППЫ ==========
+# ========== VK GROUPS ==========
 @app.route('/vk/groups')
 def vk_groups():
     token = request.args.get('token', '')
@@ -730,7 +728,7 @@ def vk_groups():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# ========== HTML ДОКУМЕНТАЦИЯ ==========
+# ========== HTML ДОКУМЕНТАЦИЯ (БЕЗ УПОМИНАНИЯ ПЛАТНОГО ТОКЕНА) ==========
 HTML_DOC = '''
 <!DOCTYPE html>
 <html lang="ru">
@@ -949,7 +947,7 @@ HTML_DOC = '''
             word-break: break-all;
         }
         
-        .token-badge-free {
+        .token-badge {
             display: inline-block;
             padding: 4px 10px;
             background: #00ff9d20;
@@ -998,12 +996,12 @@ HTML_DOC = '''
                 <div class="stat-label">Парсеров</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">Безлимит</div>
-                <div class="stat-label">LevSearchApiAll</div>
+                <div class="stat-number">500/день</div>
+                <div class="stat-label">Бесплатный доступ</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">500/день</div>
-                <div class="stat-label">1KSUBS (бесплатно)</div>
+                <div class="stat-number">Безлимит</div>
+                <div class="stat-label">Премиум доступ</div>
             </div>
         </div>
         
@@ -1029,7 +1027,7 @@ HTML_DOC = '''
                 </select>
                 <button class="search-button" onclick="testAPI()">▶ Отправить</button>
             </div>
-            <div class="warning" id="warningMsg">🎁 Бесплатный токен 1KSUBS - 500 запросов в день</div>
+            <div class="warning" id="warningMsg">🎁 Бесплатный токен: 500 запросов в день</div>
             <pre id="resultPre" style="margin-top: 20px; background: #0a0e27; padding: 15px; border-radius: 10px; overflow-x: auto; font-size: 12px; display: none;"></pre>
         </div>
         
@@ -1042,7 +1040,7 @@ HTML_DOC = '''
                 <div class="endpoint-body">
                     <div class="endpoint-desc">🔍 Основной поиск - IntelX, Veriphone, WhatsApp, Одноклассники, соцсети, Google Dorks</div>
                     <div class="endpoint-example">/search?token=1KSUBS&q=79233756070</div>
-                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
+                    <div class="token-badge">🎁 Бесплатно: 500/день</div>
                 </div>
             </div>
             
@@ -1054,7 +1052,7 @@ HTML_DOC = '''
                 <div class="endpoint-body">
                     <div class="endpoint-desc">📂 Поиск утечек в открытых базах IntelX</div>
                     <div class="endpoint-example">/intelx?token=1KSUBS&phone=79233756070</div>
-                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
+                    <div class="token-badge">🎁 Бесплатно: 500/день</div>
                 </div>
             </div>
             
@@ -1066,7 +1064,7 @@ HTML_DOC = '''
                 <div class="endpoint-body">
                     <div class="endpoint-desc">🌐 WHOIS информация о домене</div>
                     <div class="endpoint-example">/whois?token=1KSUBS&domain=google.com</div>
-                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
+                    <div class="token-badge">🎁 Бесплатно: 500/день</div>
                 </div>
             </div>
             
@@ -1078,7 +1076,7 @@ HTML_DOC = '''
                 <div class="endpoint-body">
                     <div class="endpoint-desc">📋 DNS записи домена</div>
                     <div class="endpoint-example">/dns?token=1KSUBS&domain=google.com</div>
-                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
+                    <div class="token-badge">🎁 Бесплатно: 500/день</div>
                 </div>
             </div>
             
@@ -1090,7 +1088,7 @@ HTML_DOC = '''
                 <div class="endpoint-body">
                     <div class="endpoint-desc">🌍 Поиск поддоменов через crt.sh</div>
                     <div class="endpoint-example">/subdomains?token=1KSUBS&domain=google.com</div>
-                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
+                    <div class="token-badge">🎁 Бесплатно: 500/день</div>
                 </div>
             </div>
             
@@ -1102,7 +1100,7 @@ HTML_DOC = '''
                 <div class="endpoint-body">
                     <div class="endpoint-desc">👤 Информация о VK пользователе</div>
                     <div class="endpoint-example">/vk?token=1KSUBS&id=1</div>
-                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
+                    <div class="token-badge">🎁 Бесплатно: 500/день</div>
                 </div>
             </div>
             
@@ -1114,7 +1112,7 @@ HTML_DOC = '''
                 <div class="endpoint-body">
                     <div class="endpoint-desc">📍 Геолокация IP адреса</div>
                     <div class="endpoint-example">/ip?token=1KSUBS&address=8.8.8.8</div>
-                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
+                    <div class="token-badge">🎁 Бесплатно: 500/день</div>
                 </div>
             </div>
             
@@ -1126,7 +1124,7 @@ HTML_DOC = '''
                 <div class="endpoint-body">
                     <div class="endpoint-desc">💳 Информация о банковской карте по BIN</div>
                     <div class="endpoint-example">/card?token=1KSUBS&bin=477964</div>
-                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
+                    <div class="token-badge">🎁 Бесплатно: 500/день</div>
                 </div>
             </div>
             
@@ -1138,7 +1136,7 @@ HTML_DOC = '''
                 <div class="endpoint-body">
                     <div class="endpoint-desc">🏦 Поиск банка по ИНН</div>
                     <div class="endpoint-example">/bank?token=1KSUBS&inn=7707083893</div>
-                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
+                    <div class="token-badge">🎁 Бесплатно: 500/день</div>
                 </div>
             </div>
             
@@ -1150,7 +1148,7 @@ HTML_DOC = '''
                 <div class="endpoint-body">
                     <div class="endpoint-desc">🎵 Информация о TikTok пользователе</div>
                     <div class="endpoint-example">/tiktok?token=1KSUBS&username=marvel</div>
-                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
+                    <div class="token-badge">🎁 Бесплатно: 500/день</div>
                 </div>
             </div>
             
@@ -1162,7 +1160,7 @@ HTML_DOC = '''
                 <div class="endpoint-body">
                     <div class="endpoint-desc">📱 Проверка существования Telegram</div>
                     <div class="endpoint-example">/telegram?token=1KSUBS&username=durov</div>
-                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
+                    <div class="token-badge">🎁 Бесплатно: 500/день</div>
                 </div>
             </div>
             
@@ -1174,7 +1172,7 @@ HTML_DOC = '''
                 <div class="endpoint-body">
                     <div class="endpoint-desc">📧 Проверка MX записей email</div>
                     <div class="endpoint-example">/email?token=1KSUBS&address=test@gmail.com</div>
-                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
+                    <div class="token-badge">🎁 Бесплатно: 500/день</div>
                 </div>
             </div>
             
@@ -1186,7 +1184,7 @@ HTML_DOC = '''
                 <div class="endpoint-body">
                     <div class="endpoint-desc">💬 Проверка наличия WhatsApp</div>
                     <div class="endpoint-example">/whatsapp?token=1KSUBS&phone=79233756070</div>
-                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
+                    <div class="token-badge">🎁 Бесплатно: 500/день</div>
                 </div>
             </div>
             
@@ -1198,13 +1196,13 @@ HTML_DOC = '''
                 <div class="endpoint-body">
                     <div class="endpoint-desc">👥 Поиск профиля в Одноклассниках</div>
                     <div class="endpoint-example">/odnoklassniki?token=1KSUBS&phone=79233756070</div>
-                    <div class="token-badge-free">🎁 Бесплатно: 500/день (1KSUBS)</div>
+                    <div class="token-badge">🎁 Бесплатно: 500/день</div>
                 </div>
             </div>
         </div>
         
         <div class="footer">
-            <p>LevSearch API | OSINT инструмент | 🎁 Бесплатно: 500 запросов в день (токен 1KSUBS) | 💎 Платно: безлимит (токен LevSearchApiAll)</p>
+            <p>LevSearch API | OSINT инструмент | 🎁 Бесплатно: 500 запросов в день | 💎 Премиум: безлимит</p>
         </div>
     </div>
     
@@ -1220,9 +1218,10 @@ HTML_DOC = '''
         }
         
         function updateWarning() {
-            const remaining = 500 - freeRequests;
+            let remaining = 500 - freeRequests;
+            if (remaining < 0) remaining = 0;
             const warningDiv = document.getElementById('warningMsg');
-            warningDiv.innerHTML = `🎁 Бесплатный токен 1KSUBS - осталось ${remaining} из 500 запросов на сегодня. Платный токен LevSearchApiAll - безлимит.`;
+            warningDiv.innerHTML = `🎁 Бесплатный доступ - использовано ${freeRequests} из 500 запросов на сегодня. Осталось: ${remaining}. Премиум доступ - безлимит.`;
             warningDiv.style.background = '#00ff9d20';
             warningDiv.style.color = '#00ff9d';
         }
@@ -1237,7 +1236,7 @@ HTML_DOC = '''
             }
             
             if (freeRequests >= 500) {
-                alert('Вы использовали 500 бесплатных запросов на сегодня. Используйте платный токен LevSearchApiAll');
+                alert('Вы использовали все 500 бесплатных запросов на сегодня. Для продолжения используйте премиум доступ.');
                 return;
             }
             
@@ -1274,11 +1273,10 @@ HTML_DOC = '''
                 const data = await response.json();
                 resultPre.textContent = JSON.stringify(data, null, 2);
                 
-                if (!data.error?.includes('лимит')) {
-                    freeRequests++;
-                    localStorage.setItem('freeRequests', freeRequests);
-                    updateWarning();
-                }
+                freeRequests++;
+                localStorage.setItem('freeRequests', freeRequests);
+                updateWarning();
+                
             } catch (error) {
                 resultPre.textContent = 'Ошибка: ' + error.message;
             }
@@ -1328,7 +1326,7 @@ def search():
     if token == TOKEN_MAIN:
         result["leakosint"] = get_leakosint(query)
     else:
-        result["leakosint"] = {"error": "LeakOSINT доступен только по токену LevSearchApiAll"}
+        result["leakosint"] = {"error": "LeakOSINT доступен только по премиум токену"}
     
     return jsonify(result)
 
@@ -1353,7 +1351,7 @@ def intelx():
 def leakosint():
     token = request.args.get('token', '')
     if token != TOKEN_MAIN:
-        return jsonify({"error": "LeakOSINT доступен только по токену LevSearchApiAll"}), 403
+        return jsonify({"error": "LeakOSINT доступен только по премиум токену"}), 403
     
     limit_ok, limit_msg = check_limit(token)
     if not limit_ok:
