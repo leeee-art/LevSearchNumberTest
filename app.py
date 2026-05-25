@@ -7,11 +7,14 @@ import socket
 import yt_dlp
 import csv
 import io
+import whois
+import dns.resolver
 from urllib.parse import unquote, quote
 
 app = Flask(__name__)
 CORS(app)
 
+# ========== КОНФИГИ ==========
 TOKEN_MAIN = "LevSearchApiAll"
 TOKEN_1K = "1KSUBS"
 LEAKOSINT_KEY = "8702237281:cYkLAFK4"
@@ -24,7 +27,7 @@ ALL_TOKENS = [TOKEN_MAIN, TOKEN_1K]
 def check_token(token):
     return token in ALL_TOKENS
 
-# ========== INTELX ==========
+# ========== INTELX (БЕСПЛАТНЫЙ ПАРСЕР УТЕЧЕК) ==========
 def get_intelx(phone):
     phone_clean = re.sub(r'\D', '', phone)
     if len(phone_clean) < 8:
@@ -112,7 +115,7 @@ def get_whatsapp(phone):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== ODKLASSNIKI ==========
+# ========== ODNOKLASSNIKI ==========
 def get_odnoklassniki(phone):
     phone_clean = re.sub(r'\D', '', phone)
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -155,7 +158,7 @@ def get_omkar_email(email):
     except Exception as e:
         return {"error": str(e)}
 
-# ========== LEAKOSINT ==========
+# ========== LEAKOSINT (ПЛАТНЫЙ API УТЕЧЕК) ==========
 def get_leakosint(query):
     try:
         r = requests.post('https://leakosintapi.com/', json={'token': LEAKOSINT_KEY, 'request': query}, timeout=60)
@@ -337,7 +340,7 @@ def get_domain_info(domain_name):
     
     return result
 
-# ========== VK ==========
+# ========== VK ОСНОВНОЙ ==========
 def get_vk_user(user_id):
     try:
         url = "https://api.vk.com/method/users.get"
@@ -345,7 +348,7 @@ def get_vk_user(user_id):
             "access_token": VK_TOKEN,
             "user_ids": user_id,
             "v": "5.131",
-            "fields": "first_name,last_name,domain,followers_count,is_closed"
+            "fields": "first_name,last_name,domain,followers_count,is_closed,sex,bdate,city,country,photo_max_orig,status"
         }
         r = requests.get(url, params=params, timeout=10)
         if r.status_code == 200:
@@ -357,11 +360,241 @@ def get_vk_user(user_id):
                     "name": f"{user.get('first_name', '')} {user.get('last_name', '')}",
                     "domain": user.get("domain"),
                     "followers": user.get("followers_count"),
-                    "is_closed": user.get("is_closed", False)
+                    "is_closed": user.get("is_closed", False),
+                    "sex": "Женский" if user.get("sex") == 1 else "Мужской" if user.get("sex") == 2 else "Не указан",
+                    "bdate": user.get("bdate"),
+                    "city": user.get("city", {}).get("title"),
+                    "country": user.get("country", {}).get("title"),
+                    "photo": user.get("photo_max_orig"),
+                    "status": user.get("status")
                 }
         return {"error": "User not found"}
     except Exception as e:
         return {"error": str(e)}
+
+# ========== НОВЫЕ VK ПАРСЕРЫ ==========
+
+# 1. Стена пользователя (посты)
+@app.route('/vk/wall')
+def vk_wall():
+    token = request.args.get('token', '')
+    if not check_token(token):
+        return jsonify({"error": "Invalid token"}), 403
+    
+    user_id = request.args.get('id', '')
+    count = int(request.args.get('count', 10))
+    
+    try:
+        url = "https://api.vk.com/method/wall.get"
+        params = {
+            "access_token": VK_TOKEN,
+            "owner_id": user_id,
+            "v": "5.131",
+            "count": count,
+            "filter": "all"
+        }
+        r = requests.get(url, params=params, timeout=10)
+        return jsonify(r.json())
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+# 2. Друзья пользователя
+@app.route('/vk/friends')
+def vk_friends():
+    token = request.args.get('token', '')
+    if not check_token(token):
+        return jsonify({"error": "Invalid token"}), 403
+    
+    user_id = request.args.get('id', '')
+    
+    try:
+        url = "https://api.vk.com/method/friends.get"
+        params = {
+            "access_token": VK_TOKEN,
+            "user_id": user_id,
+            "v": "5.131",
+            "fields": "first_name,last_name,photo_100"
+        }
+        r = requests.get(url, params=params, timeout=10)
+        return jsonify(r.json())
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+# 3. Группы пользователя
+@app.route('/vk/groups')
+def vk_groups():
+    token = request.args.get('token', '')
+    if not check_token(token):
+        return jsonify({"error": "Invalid token"}), 403
+    
+    user_id = request.args.get('id', '')
+    
+    try:
+        url = "https://api.vk.com/method/groups.get"
+        params = {
+            "access_token": VK_TOKEN,
+            "user_id": user_id,
+            "v": "5.131",
+            "extended": 1,
+            "fields": "name,photo_100,members_count"
+        }
+        r = requests.get(url, params=params, timeout=10)
+        return jsonify(r.json())
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+# ========== НОВЫЕ ПАРСЕРЫ (WHOIS, DNS, HEADERS, SUBDOMAINS, OMKAR REVIEWS) ==========
+
+# 1. WHOIS парсер
+@app.route('/whois')
+def whois_parser():
+    token = request.args.get('token', '')
+    if not check_token(token):
+        return jsonify({"error": "Invalid token"}), 403
+    
+    domain = request.args.get('domain', '')
+    if not domain:
+        return jsonify({"error": "Missing domain parameter"}), 400
+    
+    try:
+        w = whois.whois(domain)
+        result = {
+            "domain": domain,
+            "registrar": str(w.registrar) if w.registrar else None,
+            "creation_date": str(w.creation_date) if w.creation_date else None,
+            "expiration_date": str(w.expiration_date) if w.expiration_date else None,
+            "updated_date": str(w.updated_date) if w.updated_date else None,
+            "name_servers": w.name_servers,
+            "status": w.status,
+            "emails": w.emails,
+            "org": str(w.org) if w.org else None,
+            "country": str(w.country) if w.country else None
+        }
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+# 2. DNS парсер
+@app.route('/dns')
+def dns_parser():
+    token = request.args.get('token', '')
+    if not check_token(token):
+        return jsonify({"error": "Invalid token"}), 403
+    
+    domain = request.args.get('domain', '')
+    if not domain:
+        return jsonify({"error": "Missing domain parameter"}), 400
+    
+    records = {}
+    types = ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME', 'SOA']
+    
+    for record_type in types:
+        try:
+            answers = dns.resolver.resolve(domain, record_type)
+            records[record_type] = [str(r) for r in answers]
+        except:
+            records[record_type] = []
+    
+    return jsonify({"domain": domain, "records": records})
+
+# 3. Парсер заголовков сайта
+@app.route('/headers')
+def headers_parser():
+    token = request.args.get('token', '')
+    if not check_token(token):
+        return jsonify({"error": "Invalid token"}), 403
+    
+    url = request.args.get('url', '')
+    if not url:
+        return jsonify({"error": "Missing url parameter"}), 400
+    
+    if not url.startswith('http'):
+        url = 'https://' + url
+    
+    try:
+        r = requests.get(url, timeout=15, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+        
+        result = {
+            "url": url,
+            "status_code": r.status_code,
+            "server": r.headers.get('Server'),
+            "content_type": r.headers.get('Content-Type'),
+            "headers": dict(r.headers),
+            "response_time": r.elapsed.total_seconds()
+        }
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+# 4. Парсер поддоменов (crt.sh)
+@app.route('/subdomains')
+def subdomains_parser():
+    token = request.args.get('token', '')
+    if not check_token(token):
+        return jsonify({"error": "Invalid token"}), 403
+    
+    domain = request.args.get('domain', '')
+    if not domain:
+        return jsonify({"error": "Missing domain parameter"}), 400
+    
+    try:
+        url = f"https://crt.sh/?q=%25.{domain}&output=json"
+        r = requests.get(url, timeout=30)
+        if r.status_code == 200:
+            data = r.json()
+            subdomains = set()
+            for entry in data:
+                name = entry.get('name_value', '')
+                if name:
+                    for sub in name.split('\n'):
+                        if domain in sub:
+                            subdomains.add(sub.strip())
+            return jsonify({"domain": domain, "subdomains": list(subdomains)[:50]})
+        return jsonify({"error": f"HTTP {r.status_code}"})
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+# 5. Omkar отзывы
+@app.route('/omkar/reviews')
+def omkar_reviews():
+    token = request.args.get('token', '')
+    if not check_token(token):
+        return jsonify({"error": "Invalid token"}), 403
+    
+    query = request.args.get('query', '')
+    if not query:
+        return jsonify({"error": "Missing query parameter"}), 400
+    
+    try:
+        url = "https://travel-data-api.omkar.cloud/travel/reviews"
+        r = requests.get(
+            url,
+            params={"query": query},
+            headers={"API-Key": OMKAR_API_KEY},
+            timeout=30
+        )
+        if r.status_code == 200:
+            data = r.json()
+            results = []
+            for review in data.get('results', [])[:20]:
+                results.append({
+                    "title": review.get('title'),
+                    "rating": review.get('rating'),
+                    "text": review.get('text')[:500] if review.get('text') else None,
+                    "date": review.get('published_at_date'),
+                    "author": review.get('reviewer', {}).get('name'),
+                    "link": review.get('review_link')
+                })
+            return jsonify({
+                "query": query,
+                "total": data.get('count', 0),
+                "reviews": results
+            })
+        return jsonify({"error": f"HTTP {r.status_code}"})
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 # ========== IP ==========
 def get_ip_info(ip_address):
@@ -449,27 +682,36 @@ def get_telegram_user(username):
 def index():
     return jsonify({
         "status": "LevSearch API is running",
+        "version": "2.0",
         "endpoints": {
-            "/search": "?token=LevSearchApiAll&q=79233756070",
-            "/intelx": "?token=LevSearchApiAll&phone=79233756070",
-            "/youtube": "?token=LevSearchApiAll&url=https://youtube.com/watch?v=...",
-            "/veriphone": "?token=LevSearchApiAll&phone=79233756070",
-            "/whatsapp": "?token=LevSearchApiAll&phone=79233756070",
-            "/odnoklassniki": "?token=LevSearchApiAll&phone=79233756070",
-            "/omkar/phone": "?token=LevSearchApiAll&phone=79233756070",
-            "/omkar/email": "?token=LevSearchApiAll&email=test@gmail.com",
-            "/leakosint": "?token=LevSearchApiAll&q=79233756070",
-            "/social": "?token=LevSearchApiAll&phone=79233756070",
-            "/dorks": "?token=LevSearchApiAll&phone=79233756070",
-            "/bank": "?token=LevSearchApiAll&inn=7707083893",
-            "/card": "?token=LevSearchApiAll&bin=477964",
-            "/domain": "?token=LevSearchApiAll&name=google.com",
-            "/vk": "?token=LevSearchApiAll&id=1",
-            "/ip": "?token=LevSearchApiAll&address=8.8.8.8",
-            "/tiktok": "?token=LevSearchApiAll&username=marvel",
-            "/instagram": "?token=LevSearchApiAll&phone=79233756070",
-            "/email": "?token=LevSearchApiAll&address=test@gmail.com",
-            "/telegram": "?token=LevSearchApiAll&username=durov"
+            "/search": "Поиск по номеру/email (IntelX + Veriphone + WhatsApp + OK + Omkar + Social + Dorks + LeakOSINT)",
+            "/intelx": "IntelX утечки по номеру",
+            "/youtube": "YouTube информация",
+            "/veriphone": "Проверка телефона",
+            "/whatsapp": "Проверка WhatsApp",
+            "/odnoklassniki": "Поиск в Одноклассниках",
+            "/omkar/phone": "Omkar телефон",
+            "/omkar/email": "Omkar email",
+            "/leakosint": "LeakOSINT утечки",
+            "/social": "Ссылки на соцсети",
+            "/dorks": "Google Dorks",
+            "/bank": "Банк по ИНН",
+            "/card": "BIN карты",
+            "/domain": "Инфо о домене (IP + порты)",
+            "/vk": "VK пользователь",
+            "/vk/wall": "Стена VK",
+            "/vk/friends": "Друзья VK",
+            "/vk/groups": "Группы VK",
+            "/ip": "IP информация",
+            "/tiktok": "TikTok пользователь",
+            "/instagram": "Instagram по телефону",
+            "/email": "Email MX проверка",
+            "/telegram": "Telegram пользователь",
+            "/whois": "WHOIS домена",
+            "/dns": "DNS записи",
+            "/headers": "Заголовки сайта",
+            "/subdomains": "Поддомены (crt.sh)",
+            "/omkar/reviews": "Отзывы о месте"
         }
     })
 
@@ -600,7 +842,7 @@ def omkar_email():
 def leakosint():
     token = request.args.get('token', '')
     if token != TOKEN_MAIN:
-        return jsonify({"error": "LeakOSINT доступен только с токеном для админов"}), 403
+        return jsonify({"error": "LeakOSINT доступен только по токену LevSearchApiAll"}), 403
     
     query = request.args.get('q', '')
     if not query:
