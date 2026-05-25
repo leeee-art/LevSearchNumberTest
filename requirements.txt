@@ -2,4 +2,6 @@ flask
 flask-cors
 requests
 yt-dlp
+python-whois
+dnspython
 gunicorn
